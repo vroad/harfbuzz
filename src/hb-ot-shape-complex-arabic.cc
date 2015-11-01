@@ -24,7 +24,7 @@
  * Google Author(s): Behdad Esfahbod
  */
 
-#include "hb-ot-shape-complex-private.hh"
+#include "hb-ot-shape-complex-arabic-private.hh"
 #include "hb-ot-shape-private.hh"
 
 
@@ -33,9 +33,13 @@
 
 
 /*
+ * Joining types:
+ */
+
+/*
  * Bits used in the joining tables
  */
-enum {
+enum hb_arabic_joining_type_t {
   JOINING_TYPE_U		= 0,
   JOINING_TYPE_L		= 1,
   JOINING_TYPE_R		= 2,
@@ -49,10 +53,6 @@ enum {
   JOINING_TYPE_X = 8  /* means: use general-category to choose between U or T. */
 };
 
-/*
- * Joining types:
- */
-
 #include "hb-ot-shape-complex-arabic-table.hh"
 
 static unsigned int get_joining_type (hb_codepoint_t u, hb_unicode_general_category_t gen_cat)
@@ -61,7 +61,7 @@ static unsigned int get_joining_type (hb_codepoint_t u, hb_unicode_general_categ
   if (likely (j_type != JOINING_TYPE_X))
     return j_type;
 
-  return (FLAG(gen_cat) &
+  return (FLAG_SAFE(gen_cat) &
 	  (FLAG(HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK) |
 	   FLAG(HB_UNICODE_GENERAL_CATEGORY_ENCLOSING_MARK) |
 	   FLAG(HB_UNICODE_GENERAL_CATEGORY_FORMAT))
@@ -212,7 +212,7 @@ struct arabic_shape_plan_t
   arabic_fallback_plan_t *fallback_plan;
 };
 
-static void *
+void *
 data_create_arabic (const hb_ot_shape_plan_t *plan)
 {
   arabic_shape_plan_t *arabic_plan = (arabic_shape_plan_t *) calloc (1, sizeof (arabic_shape_plan_t));
@@ -223,14 +223,14 @@ data_create_arabic (const hb_ot_shape_plan_t *plan)
   for (unsigned int i = 0; i < ARABIC_NUM_FEATURES; i++) {
     arabic_plan->mask_array[i] = plan->map.get_1_mask (arabic_features[i]);
     arabic_plan->do_fallback = arabic_plan->do_fallback &&
-			       !FEATURE_IS_SYRIAC (arabic_features[i]) &&
-			       plan->map.needs_fallback (arabic_features[i]);
+			       (FEATURE_IS_SYRIAC (arabic_features[i]) ||
+			        plan->map.needs_fallback (arabic_features[i]));
   }
 
   return arabic_plan;
 }
 
-static void
+void
 data_destroy_arabic (void *data)
 {
   arabic_shape_plan_t *arabic_plan = (arabic_shape_plan_t *) data;
@@ -248,18 +248,17 @@ arabic_joining (hb_buffer_t *buffer)
   unsigned int prev = (unsigned int) -1, state = 0;
 
   /* Check pre-context */
-  if (!(buffer->flags & HB_BUFFER_FLAG_BOT))
-    for (unsigned int i = 0; i < buffer->context_len[0]; i++)
-    {
-      unsigned int this_type = get_joining_type (buffer->context[0][i], buffer->unicode->general_category (buffer->context[0][i]));
+  for (unsigned int i = 0; i < buffer->context_len[0]; i++)
+  {
+    unsigned int this_type = get_joining_type (buffer->context[0][i], buffer->unicode->general_category (buffer->context[0][i]));
 
-      if (unlikely (this_type == JOINING_TYPE_T))
-	continue;
+    if (unlikely (this_type == JOINING_TYPE_T))
+      continue;
 
-      const arabic_state_table_entry *entry = &arabic_state_table[state][this_type];
-      state = entry->next_state;
-      break;
-    }
+    const arabic_state_table_entry *entry = &arabic_state_table[state][this_type];
+    state = entry->next_state;
+    break;
+  }
 
   for (unsigned int i = 0; i < count; i++)
   {
@@ -281,19 +280,18 @@ arabic_joining (hb_buffer_t *buffer)
     state = entry->next_state;
   }
 
-  if (!(buffer->flags & HB_BUFFER_FLAG_EOT))
-    for (unsigned int i = 0; i < buffer->context_len[1]; i++)
-    {
-      unsigned int this_type = get_joining_type (buffer->context[1][i], buffer->unicode->general_category (buffer->context[1][i]));
+  for (unsigned int i = 0; i < buffer->context_len[1]; i++)
+  {
+    unsigned int this_type = get_joining_type (buffer->context[1][i], buffer->unicode->general_category (buffer->context[1][i]));
 
-      if (unlikely (this_type == JOINING_TYPE_T))
-	continue;
+    if (unlikely (this_type == JOINING_TYPE_T))
+      continue;
 
-      const arabic_state_table_entry *entry = &arabic_state_table[state][this_type];
-      if (entry->prev_action != NONE && prev != (unsigned int) -1)
-	info[prev].arabic_shaping_action() = entry->prev_action;
-      break;
-    }
+    const arabic_state_table_entry *entry = &arabic_state_table[state][this_type];
+    if (entry->prev_action != NONE && prev != (unsigned int) -1)
+      info[prev].arabic_shaping_action() = entry->prev_action;
+    break;
+  }
 }
 
 static void
@@ -307,17 +305,15 @@ mongolian_variation_selectors (hb_buffer_t *buffer)
       info[i].arabic_shaping_action() = info[i - 1].arabic_shaping_action();
 }
 
-static void
-setup_masks_arabic (const hb_ot_shape_plan_t *plan,
-		    hb_buffer_t              *buffer,
-		    hb_font_t                *font HB_UNUSED)
+void
+setup_masks_arabic_plan (const arabic_shape_plan_t *arabic_plan,
+			 hb_buffer_t               *buffer,
+			 hb_script_t                script)
 {
   HB_BUFFER_ALLOCATE_VAR (buffer, arabic_shaping_action);
 
-  const arabic_shape_plan_t *arabic_plan = (const arabic_shape_plan_t *) plan->data;
-
   arabic_joining (buffer);
-  if (plan->props.script == HB_SCRIPT_MONGOLIAN)
+  if (script == HB_SCRIPT_MONGOLIAN)
     mongolian_variation_selectors (buffer);
 
   unsigned int count = buffer->len;
@@ -326,6 +322,15 @@ setup_masks_arabic (const hb_ot_shape_plan_t *plan,
     info[i].mask |= arabic_plan->mask_array[info[i].arabic_shaping_action()];
 
   HB_BUFFER_DEALLOCATE_VAR (buffer, arabic_shaping_action);
+}
+
+static void
+setup_masks_arabic (const hb_ot_shape_plan_t *plan,
+		    hb_buffer_t              *buffer,
+		    hb_font_t                *font HB_UNUSED)
+{
+  const arabic_shape_plan_t *arabic_plan = (const arabic_shape_plan_t *) plan->data;
+  setup_masks_arabic_plan (arabic_plan, buffer, plan->props.script);
 }
 
 

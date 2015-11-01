@@ -48,15 +48,14 @@ struct hb_buffer_t {
   ASSERT_POD ();
 
   /* Information about how the text in the buffer should be treated */
-
   hb_unicode_funcs_t *unicode; /* Unicode functions */
-  hb_segment_properties_t props; /* Script, language, direction */
   hb_buffer_flags_t flags; /* BOT / EOT / etc. */
+  hb_buffer_cluster_level_t cluster_level;
   hb_codepoint_t replacement; /* U+FFFD or something else. */
 
   /* Buffer contents */
-
   hb_buffer_content_type_t content_type;
+  hb_segment_properties_t props; /* Script, language, direction */
 
   bool in_error; /* Allocation failed */
   bool have_output; /* Whether we have an output buffer going on */
@@ -173,15 +172,27 @@ struct hb_buffer_t {
 			      unsigned int cluster_end);
 
   HB_INTERNAL void merge_clusters (unsigned int start,
-				   unsigned int end);
+				   unsigned int end)
+  {
+    if (end - start < 2)
+      return;
+    merge_clusters_impl (start, end);
+  }
+  HB_INTERNAL void merge_clusters_impl (unsigned int start,
+					unsigned int end);
   HB_INTERNAL void merge_out_clusters (unsigned int start,
 				       unsigned int end);
+  /* Merge clusters for deleting current glyph, and skip it. */
+  HB_INTERNAL void delete_glyph (void);
 
   /* Internal methods */
   HB_INTERNAL bool enlarge (unsigned int size);
 
   inline bool ensure (unsigned int size)
   { return likely (!size || size < allocated) ? true : enlarge (size); }
+
+  inline bool ensure_inplace (unsigned int size)
+  { return likely (!size || size < allocated); }
 
   HB_INTERNAL bool make_room_for (unsigned int num_in, unsigned int num_out);
   HB_INTERNAL bool shift_forward (unsigned int count);
@@ -190,6 +201,8 @@ struct hb_buffer_t {
   HB_INTERNAL scratch_buffer_t *get_scratch_buffer (unsigned int *size);
 
   inline void clear_context (unsigned int side) { context_len[side] = 0; }
+
+  HB_INTERNAL void sort (unsigned int start, unsigned int end, int(*compar)(const hb_glyph_info_t *, const hb_glyph_info_t *));
 };
 
 

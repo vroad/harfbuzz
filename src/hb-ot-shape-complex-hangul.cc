@@ -59,6 +59,15 @@ collect_features_hangul (hb_ot_shape_planner_t *plan)
     map->add_feature (hangul_features[i], 1, F_NONE);
 }
 
+static void
+override_features_hangul (hb_ot_shape_planner_t *plan)
+{
+  /* Uniscribe does not apply 'calt' for Hangul, and certain fonts
+   * (Noto Sans CJK, Source Sans Han, etc) apply all of jamo lookups
+   * in calt, which is not desirable. */
+  plan->map.add_feature (HB_TAG('c','a','l','t'), 0, F_GLOBAL);
+}
+
 struct hangul_shape_plan_t
 {
   ASSERT_POD ();
@@ -196,17 +205,12 @@ preprocess_text_hangul (const hb_ot_shape_plan_t *plan,
 	buffer->next_glyph ();
 	if (!is_zero_width_char (font, u))
 	{
+	  buffer->merge_out_clusters (start, end + 1);
 	  hb_glyph_info_t *info = buffer->out_info;
 	  hb_glyph_info_t tone = info[end];
 	  memmove (&info[start + 1], &info[start], (end - start) * sizeof (hb_glyph_info_t));
 	  info[start] = tone;
 	}
-	/* Merge clusters across the (possibly reordered) syllable+tone.
-	 * We want to merge even in the zero-width tone mark case here,
-	 * so that clustering behavior isn't dependent on how the tone mark
-	 * is handled by the font.
-	 */
-	buffer->merge_out_clusters (start, end + 1);
       }
       else
       {
@@ -287,7 +291,8 @@ preprocess_text_hangul (const hb_ot_shape_plan_t *plan,
 	}
 	else
 	  end = start + 2;
-	buffer->merge_out_clusters (start, end);
+	if (buffer->cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES)
+	  buffer->merge_out_clusters (start, end);
 	continue;
       }
     }
@@ -359,7 +364,8 @@ preprocess_text_hangul (const hb_ot_shape_plan_t *plan,
 	  info[i++].hangul_shaping_feature() = VJMO;
 	  if (i < end)
 	    info[i++].hangul_shaping_feature() = TJMO;
-	  buffer->merge_out_clusters (start, end);
+	  if (buffer->cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES)
+	    buffer->merge_out_clusters (start, end);
 	  continue;
 	}
       }
@@ -404,7 +410,7 @@ const hb_ot_complex_shaper_t _hb_ot_complex_shaper_hangul =
 {
   "hangul",
   collect_features_hangul,
-  NULL, /* override_features */
+  override_features_hangul,
   data_create_hangul, /* data_create */
   data_destroy_hangul, /* data_destroy */
   preprocess_text_hangul,

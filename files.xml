@@ -41,9 +41,10 @@
 		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-complex-indic-table.cc" />
 		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-complex-indic.cc" />
 		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-complex-myanmar.cc" />
-		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-complex-sea.cc" />
 		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-complex-thai.cc" />
 		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-complex-tibetan.cc" />
+		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-complex-use.cc" />
+		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-complex-use-table.cc" />
 		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-fallback.cc" />
 		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape-normalize.cc" />
 		<file name="${NATIVE_TOOLKIT_PATH}/harfbuzz/src/hb-ot-shape.cc" />

@@ -1,6 +1,6 @@
-/*** BEGIN file-header ***/
 /*
- * Copyright © 2013  Google, Inc.
+ * Copyright © 2015  Mozilla Foundation.
+ * Copyright © 2015  Google, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -22,34 +22,29 @@
  * ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
  * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
+ * Mozilla Author(s): Jonathan Kew
  * Google Author(s): Behdad Esfahbod
  */
 
-#ifndef HB_GOBJECT_H_IN
-#error "Include <hb-gobject.h> instead."
-#endif
+#ifndef HB_OT_SHAPE_COMPLEX_ARABIC_PRIVATE_HH
+#define HB_OT_SHAPE_COMPLEX_ARABIC_PRIVATE_HH
 
-#ifndef HB_GOBJECT_ENUMS_H
-#define HB_GOBJECT_ENUMS_H
+#include "hb-private.hh"
 
-#include "hb.h"
-
-#include <glib-object.h>
-
-HB_BEGIN_DECLS
+#include "hb-ot-shape-complex-private.hh"
 
 
-/*** END file-header ***/
+struct arabic_shape_plan_t;
 
-/*** BEGIN value-header ***/
-GType @enum_name@_get_type (void) G_GNUC_CONST;
-#define @ENUMPREFIX@_TYPE_@ENUMSHORT@ (@enum_name@_get_type ())
+HB_INTERNAL void *
+data_create_arabic (const hb_ot_shape_plan_t *plan);
 
-/*** END value-header ***/
+HB_INTERNAL void
+data_destroy_arabic (void *data);
 
-/*** BEGIN file-tail ***/
+HB_INTERNAL void
+setup_masks_arabic_plan (const arabic_shape_plan_t *arabic_plan,
+			 hb_buffer_t               *buffer,
+			 hb_script_t                script);
 
-HB_END_DECLS
-
-#endif /* HB_GOBJECT_ENUMS_H */
-/*** END file-tail ***/
+#endif /* HB_OT_SHAPE_COMPLEX_ARABIC_PRIVATE_HH */
